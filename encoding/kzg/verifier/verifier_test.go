@@ -58,12 +58,12 @@ func teardown() {
 // var control interface{ Stop() }
 
 func TestBenchmarkVerifyChunks(t *testing.T) {
-	t.Skip("This test is meant to be run manually, not as part of the test suite")
+	//t.Skip("This test is meant to be run manually, not as part of the test suite")
 
 	p, _ := prover.NewProver(kzgConfig, true)
 	v, _ := verifier.NewVerifier(kzgConfig, true)
 
-	chunkLengths := []uint64{64, 128, 256, 512, 1024, 2048, 4096, 8192}
+	chunkLengths := []uint64{64, 128}
 	chunkCounts := []int{4, 8, 16}
 
 	file, err := os.Create("benchmark_results.csv")
@@ -84,6 +84,8 @@ func TestBenchmarkVerifyChunks(t *testing.T) {
 		blob := make([]byte, blobSize)
 		_, err = rand.Read(blob)
 		assert.NoError(t, err)
+
+		blob = codec.ConvertByPaddingEmptyByte(blob)
 
 		commitments, chunks, err := p.EncodeAndProve(blob, params)
 		assert.NoError(t, err)
@@ -108,7 +110,6 @@ func TestBenchmarkVerifyChunks(t *testing.T) {
 
 		}
 	}
-
 }
 
 func BenchmarkVerifyBlob(b *testing.B) {
