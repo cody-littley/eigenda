@@ -63,7 +63,7 @@ func TestBenchmarkVerifyChunks(t *testing.T) {
 	p, _ := prover.NewProver(kzgConfig, true)
 	v, _ := verifier.NewVerifier(kzgConfig, true)
 
-	chunkLengths := []uint64{64, 128}
+	chunkLengths := []uint64{1, 2, 4, 8, 16, 32, 64, 128}
 	chunkCounts := []int{4, 8, 16}
 
 	file, err := os.Create("benchmark_results.csv")
