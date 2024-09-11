@@ -55,7 +55,12 @@ func (d *Destination) stream() error {
 	if err != nil {
 		return nil
 	}
-	defer conn.Close()
+	defer func() {
+		err = conn.Close()
+		if err != nil {
+			fmt.Printf("failed to close connection: %v\n", err)
+		}
+	}()
 
 	client := lightnode.NewSourceClient(conn)
 
