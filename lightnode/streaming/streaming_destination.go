@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/eigenda/api/grpc/lightnode"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"io"
 )
 
 type Destination struct {
@@ -74,9 +75,15 @@ func (d *Destination) stream() error {
 	// TODO how to break out if local context is cancelled?
 	for {
 		reply, err := streamClient.Recv()
-		if err != nil {
+
+		if err == io.EOF {
+			fmt.Printf("EOF\n")
+			break
+		} else if err != nil {
 			return fmt.Errorf("failed to receive: %w", err)
 		}
 		fmt.Printf("got data of length %d\n", len(reply.Data))
 	}
+
+	return nil
 }

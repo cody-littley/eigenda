@@ -12,11 +12,13 @@ mkdir -p $DATA_DIRECTORY
 # Copy configuration file into data directory
 cp "${CONFIG_FILE}" "${DATA_DIRECTORY}/config.json"
 
+# TODO it would be neat if the compiled go binary did this parsing for us to avoid additional dependencies
 PORT=$(jq .Port "${CONFIG_FILE}")
 echo "Starting node on port $PORT"
 
-# Example command
+# Example commands
 # ./docker/run.sh ~/ws/tmp/source ~/ws/tmp/source.json
+# ./docker/run.sh ~/ws/tmp/destination ~/ws/tmp/destination.json
 
 docker run \
   --rm \

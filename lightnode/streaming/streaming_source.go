@@ -56,7 +56,7 @@ func (s *Source) Start() error {
 		}
 	}()
 
-	fmt.Println("Sever online")
+	fmt.Println("Server online")
 
 	switch s.config.SourceConfig.TransferStrategy {
 	case Stream:
@@ -84,25 +84,28 @@ func (s *Source) StreamData(request *lightnode.StreamDataRequest, server lightno
 	period := time.Duration(1e9 / s.config.SourceConfig.MessagesPerSecond)
 	ticker := time.NewTicker(period)
 
-	select {
-	case <-s.ctx.Done():
-		fmt.Println("context cancelled, exiting")
-	case <-server.Context().Done():
-		fmt.Println("server context cancelled, exiting")
-	case <-ticker.C:
-		data := make([]byte, s.config.SourceConfig.BytesPerMessage)
-		_, err := rand.Read(data)
-		if err != nil {
-			return err
-		}
+	for {
 
-		fmt.Printf("sending data") // TODO
+		select {
+		case <-s.ctx.Done():
+			fmt.Println("context cancelled, exiting")
+		case <-server.Context().Done():
+			fmt.Println("server context cancelled, exiting")
+		case <-ticker.C:
+			data := make([]byte, s.config.SourceConfig.BytesPerMessage)
+			_, err := rand.Read(data)
+			if err != nil {
+				return err
+			}
 
-		err = server.Send(&lightnode.StreamDataReply{
-			Data: data,
-		})
-		if err != nil {
-			return err
+			fmt.Println("sending data") // TODO
+
+			err = server.Send(&lightnode.StreamDataReply{
+				Data: data,
+			})
+			if err != nil {
+				return err
+			}
 		}
 	}
 
