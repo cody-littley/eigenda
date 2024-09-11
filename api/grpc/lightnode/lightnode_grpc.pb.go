@@ -19,32 +19,32 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Sender_StreamData_FullMethodName = "/node.Sender/StreamData"
-	Sender_GetData_FullMethodName    = "/node.Sender/GetData"
+	Source_StreamData_FullMethodName = "/node.Source/StreamData"
+	Source_GetData_FullMethodName    = "/node.Source/GetData"
 )
 
-// SenderClient is the client API for Sender service.
+// SourceClient is the client API for Source service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type SenderClient interface {
-	StreamData(ctx context.Context, in *StreamDataRequest, opts ...grpc.CallOption) (Sender_StreamDataClient, error)
+type SourceClient interface {
+	StreamData(ctx context.Context, in *StreamDataRequest, opts ...grpc.CallOption) (Source_StreamDataClient, error)
 	GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (*GetDataReply, error)
 }
 
-type senderClient struct {
+type sourceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewSenderClient(cc grpc.ClientConnInterface) SenderClient {
-	return &senderClient{cc}
+func NewSourceClient(cc grpc.ClientConnInterface) SourceClient {
+	return &sourceClient{cc}
 }
 
-func (c *senderClient) StreamData(ctx context.Context, in *StreamDataRequest, opts ...grpc.CallOption) (Sender_StreamDataClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Sender_ServiceDesc.Streams[0], Sender_StreamData_FullMethodName, opts...)
+func (c *sourceClient) StreamData(ctx context.Context, in *StreamDataRequest, opts ...grpc.CallOption) (Source_StreamDataClient, error) {
+	stream, err := c.cc.NewStream(ctx, &Source_ServiceDesc.Streams[0], Source_StreamData_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &senderStreamDataClient{stream}
+	x := &sourceStreamDataClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -54,16 +54,16 @@ func (c *senderClient) StreamData(ctx context.Context, in *StreamDataRequest, op
 	return x, nil
 }
 
-type Sender_StreamDataClient interface {
+type Source_StreamDataClient interface {
 	Recv() (*StreamDataReply, error)
 	grpc.ClientStream
 }
 
-type senderStreamDataClient struct {
+type sourceStreamDataClient struct {
 	grpc.ClientStream
 }
 
-func (x *senderStreamDataClient) Recv() (*StreamDataReply, error) {
+func (x *sourceStreamDataClient) Recv() (*StreamDataReply, error) {
 	m := new(StreamDataReply)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -71,102 +71,102 @@ func (x *senderStreamDataClient) Recv() (*StreamDataReply, error) {
 	return m, nil
 }
 
-func (c *senderClient) GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (*GetDataReply, error) {
+func (c *sourceClient) GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (*GetDataReply, error) {
 	out := new(GetDataReply)
-	err := c.cc.Invoke(ctx, Sender_GetData_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, Source_GetData_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// SenderServer is the server API for Sender service.
-// All implementations must embed UnimplementedSenderServer
+// SourceServer is the server API for Source service.
+// All implementations must embed UnimplementedSourceServer
 // for forward compatibility
-type SenderServer interface {
-	StreamData(*StreamDataRequest, Sender_StreamDataServer) error
+type SourceServer interface {
+	StreamData(*StreamDataRequest, Source_StreamDataServer) error
 	GetData(context.Context, *GetDataRequest) (*GetDataReply, error)
-	mustEmbedUnimplementedSenderServer()
+	mustEmbedUnimplementedSourceServer()
 }
 
-// UnimplementedSenderServer must be embedded to have forward compatible implementations.
-type UnimplementedSenderServer struct {
+// UnimplementedSourceServer must be embedded to have forward compatible implementations.
+type UnimplementedSourceServer struct {
 }
 
-func (UnimplementedSenderServer) StreamData(*StreamDataRequest, Sender_StreamDataServer) error {
+func (UnimplementedSourceServer) StreamData(*StreamDataRequest, Source_StreamDataServer) error {
 	return status.Errorf(codes.Unimplemented, "method StreamData not implemented")
 }
-func (UnimplementedSenderServer) GetData(context.Context, *GetDataRequest) (*GetDataReply, error) {
+func (UnimplementedSourceServer) GetData(context.Context, *GetDataRequest) (*GetDataReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetData not implemented")
 }
-func (UnimplementedSenderServer) mustEmbedUnimplementedSenderServer() {}
+func (UnimplementedSourceServer) mustEmbedUnimplementedSourceServer() {}
 
-// UnsafeSenderServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to SenderServer will
+// UnsafeSourceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to SourceServer will
 // result in compilation errors.
-type UnsafeSenderServer interface {
-	mustEmbedUnimplementedSenderServer()
+type UnsafeSourceServer interface {
+	mustEmbedUnimplementedSourceServer()
 }
 
-func RegisterSenderServer(s grpc.ServiceRegistrar, srv SenderServer) {
-	s.RegisterService(&Sender_ServiceDesc, srv)
+func RegisterSourceServer(s grpc.ServiceRegistrar, srv SourceServer) {
+	s.RegisterService(&Source_ServiceDesc, srv)
 }
 
-func _Sender_StreamData_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _Source_StreamData_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(StreamDataRequest)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(SenderServer).StreamData(m, &senderStreamDataServer{stream})
+	return srv.(SourceServer).StreamData(m, &sourceStreamDataServer{stream})
 }
 
-type Sender_StreamDataServer interface {
+type Source_StreamDataServer interface {
 	Send(*StreamDataReply) error
 	grpc.ServerStream
 }
 
-type senderStreamDataServer struct {
+type sourceStreamDataServer struct {
 	grpc.ServerStream
 }
 
-func (x *senderStreamDataServer) Send(m *StreamDataReply) error {
+func (x *sourceStreamDataServer) Send(m *StreamDataReply) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func _Sender_GetData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Source_GetData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetDataRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SenderServer).GetData(ctx, in)
+		return srv.(SourceServer).GetData(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Sender_GetData_FullMethodName,
+		FullMethod: Source_GetData_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SenderServer).GetData(ctx, req.(*GetDataRequest))
+		return srv.(SourceServer).GetData(ctx, req.(*GetDataRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Sender_ServiceDesc is the grpc.ServiceDesc for Sender service.
+// Source_ServiceDesc is the grpc.ServiceDesc for Source service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Sender_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "node.Sender",
-	HandlerType: (*SenderServer)(nil),
+var Source_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "node.Source",
+	HandlerType: (*SourceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "GetData",
-			Handler:    _Sender_GetData_Handler,
+			Handler:    _Source_GetData_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "StreamData",
-			Handler:       _Sender_StreamData_Handler,
+			Handler:       _Source_StreamData_Handler,
 			ServerStreams: true,
 		},
 	},
@@ -174,89 +174,89 @@ var Sender_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	Receiver_ReceiveData_FullMethodName = "/node.Receiver/ReceiveData"
+	Destination_ReceiveData_FullMethodName = "/node.Destination/ReceiveData"
 )
 
-// ReceiverClient is the client API for Receiver service.
+// DestinationClient is the client API for Destination service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type ReceiverClient interface {
+type DestinationClient interface {
 	ReceiveData(ctx context.Context, in *ReceiveDataRequest, opts ...grpc.CallOption) (*ReceiveDataReply, error)
 }
 
-type receiverClient struct {
+type destinationClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewReceiverClient(cc grpc.ClientConnInterface) ReceiverClient {
-	return &receiverClient{cc}
+func NewDestinationClient(cc grpc.ClientConnInterface) DestinationClient {
+	return &destinationClient{cc}
 }
 
-func (c *receiverClient) ReceiveData(ctx context.Context, in *ReceiveDataRequest, opts ...grpc.CallOption) (*ReceiveDataReply, error) {
+func (c *destinationClient) ReceiveData(ctx context.Context, in *ReceiveDataRequest, opts ...grpc.CallOption) (*ReceiveDataReply, error) {
 	out := new(ReceiveDataReply)
-	err := c.cc.Invoke(ctx, Receiver_ReceiveData_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, Destination_ReceiveData_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// ReceiverServer is the server API for Receiver service.
-// All implementations must embed UnimplementedReceiverServer
+// DestinationServer is the server API for Destination service.
+// All implementations must embed UnimplementedDestinationServer
 // for forward compatibility
-type ReceiverServer interface {
+type DestinationServer interface {
 	ReceiveData(context.Context, *ReceiveDataRequest) (*ReceiveDataReply, error)
-	mustEmbedUnimplementedReceiverServer()
+	mustEmbedUnimplementedDestinationServer()
 }
 
-// UnimplementedReceiverServer must be embedded to have forward compatible implementations.
-type UnimplementedReceiverServer struct {
+// UnimplementedDestinationServer must be embedded to have forward compatible implementations.
+type UnimplementedDestinationServer struct {
 }
 
-func (UnimplementedReceiverServer) ReceiveData(context.Context, *ReceiveDataRequest) (*ReceiveDataReply, error) {
+func (UnimplementedDestinationServer) ReceiveData(context.Context, *ReceiveDataRequest) (*ReceiveDataReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReceiveData not implemented")
 }
-func (UnimplementedReceiverServer) mustEmbedUnimplementedReceiverServer() {}
+func (UnimplementedDestinationServer) mustEmbedUnimplementedDestinationServer() {}
 
-// UnsafeReceiverServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to ReceiverServer will
+// UnsafeDestinationServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to DestinationServer will
 // result in compilation errors.
-type UnsafeReceiverServer interface {
-	mustEmbedUnimplementedReceiverServer()
+type UnsafeDestinationServer interface {
+	mustEmbedUnimplementedDestinationServer()
 }
 
-func RegisterReceiverServer(s grpc.ServiceRegistrar, srv ReceiverServer) {
-	s.RegisterService(&Receiver_ServiceDesc, srv)
+func RegisterDestinationServer(s grpc.ServiceRegistrar, srv DestinationServer) {
+	s.RegisterService(&Destination_ServiceDesc, srv)
 }
 
-func _Receiver_ReceiveData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Destination_ReceiveData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReceiveDataRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ReceiverServer).ReceiveData(ctx, in)
+		return srv.(DestinationServer).ReceiveData(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Receiver_ReceiveData_FullMethodName,
+		FullMethod: Destination_ReceiveData_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ReceiverServer).ReceiveData(ctx, req.(*ReceiveDataRequest))
+		return srv.(DestinationServer).ReceiveData(ctx, req.(*ReceiveDataRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// Receiver_ServiceDesc is the grpc.ServiceDesc for Receiver service.
+// Destination_ServiceDesc is the grpc.ServiceDesc for Destination service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var Receiver_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "node.Receiver",
-	HandlerType: (*ReceiverServer)(nil),
+var Destination_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "node.Destination",
+	HandlerType: (*DestinationServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "ReceiveData",
-			Handler:    _Receiver_ReceiveData_Handler,
+			Handler:    _Destination_ReceiveData_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

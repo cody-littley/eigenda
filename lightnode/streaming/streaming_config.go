@@ -3,10 +3,10 @@ package streaming
 type Config struct {
 	// If not null, then this node will act as a source of data.
 	// Valid configuration will have exactly one of SourceConfig or DestinationConfig be non-null.
-	SourceConfig SourceConfig
+	SourceConfig *SourceConfig
 	// If not null, then this node will act as a destination of data.
 	// Valid configuration will have exactly one of SourceConfig or DestinationConfig be non-null.
-	DestinationConfig DestinationConfig
+	DestinationConfig *DestinationConfig
 }
 
 const (

@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"github.com/Layr-Labs/eigenda/common/configuration"
 	"github.com/Layr-Labs/eigenda/lightnode/streaming"
 )
 
 // main is the entrypoint for the light node.
 func main() {
-	//fmt.Println("Hello world")
 
 	configFilePath := "./data/config.json"
 	config := &streaming.Config{}
@@ -17,4 +17,19 @@ func main() {
 		panic(err)
 	}
 
+	ctx := context.Background()
+
+	if config.SourceConfig != nil {
+		source := streaming.NewSource(ctx, config.SourceConfig)
+		err := source.Start()
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		dest := streaming.NewDestination(config.DestinationConfig)
+		err := dest.Start()
+		if err != nil {
+			panic(err)
+		}
+	}
 }
