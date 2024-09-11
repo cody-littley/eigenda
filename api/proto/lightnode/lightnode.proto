@@ -1,0 +1,38 @@
+syntax = "proto3";
+package node;
+import "google/protobuf/wrappers.proto";
+option go_package = "github.com/Layr-Labs/eigenda/api/grpc/lightnode";
+
+service Sender {
+  rpc StreamData(StreamDataRequest) returns (stream StreamDataReply) {}
+  rpc GetData(GetDataRequest) returns (GetDataReply) {}
+}
+
+service Receiver {
+  rpc ReceiveData(ReceiveDataRequest) returns (ReceiveDataReply) {}
+}
+
+message StreamDataRequest {
+
+}
+
+message StreamDataReply {
+  bytes data = 1;
+}
+
+message GetDataRequest {
+  bytes key = 1;
+}
+
+message GetDataReply {
+  bytes data = 1;
+}
+
+message ReceiveDataRequest {
+  bytes data = 1;
+}
+
+message ReceiveDataReply {
+
+}
+
