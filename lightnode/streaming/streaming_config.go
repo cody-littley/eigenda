@@ -1,6 +1,10 @@
 package streaming
 
 type Config struct {
+
+	// The port to listen on for incoming connections.
+	Port int
+
 	// If not null, then this node will act as a source of data.
 	// Valid configuration will have exactly one of SourceConfig or DestinationConfig be non-null.
 	SourceConfig *SourceConfig
@@ -27,6 +31,9 @@ type SourceConfig struct {
 
 	// The number of bytes per message.
 	BytesPerMessage int
+
+	// The IP address/port of this node.
+	Hostname string
 
 	// If the transfer strategy requires the source to initiate the transfer (i.e. Stream or Put),
 	// then this is the number of messages per second to send. The number of messages per second

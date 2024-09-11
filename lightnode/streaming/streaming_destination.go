@@ -48,33 +48,35 @@ func (d *Destination) stream() error {
 
 	target := d.config.SourceHostname
 
-	conn, err := grpc.Dial(
-		target,
+	fmt.Printf("dialing %s\n", target)
+
+	conn, err := grpc.DialContext(
+		d.ctx,
+		d.config.SourceHostname,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+		grpc.WithBlock())
 	if err != nil {
-		return nil
+		return err
 	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Printf("failed to close connection: %v\n", err)
-		}
-	}()
+	defer conn.Close()
+
+	fmt.Println("connection established")
 
 	client := lightnode.NewSourceClient(conn)
 
 	streamClient, err := client.StreamData(d.ctx, &lightnode.StreamDataRequest{})
 	if err != nil {
-		return nil
+		return err
 	}
+
+	fmt.Println("about to enter loop") // TODO
 
 	// TODO how to break out if local context is cancelled?
 	for {
 		reply, err := streamClient.Recv()
 		if err != nil {
-			return nil
+			return fmt.Errorf("failed to receive: %w", err)
 		}
-		fmt.Printf("got data of length %s\n", len(reply.Data))
+		fmt.Printf("got data of length %d\n", len(reply.Data))
 	}
 }

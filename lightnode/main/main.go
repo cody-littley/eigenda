@@ -8,11 +8,8 @@ import (
 
 // main is the entrypoint for the light node.
 func main() {
-
-	configFilePath := "./data/config.json"
 	config := &streaming.Config{}
-
-	err := configuration.ParseJsonFile(config, configFilePath)
+	err := configuration.ParseCliArgs(config)
 	if err != nil {
 		panic(err)
 	}
@@ -20,16 +17,18 @@ func main() {
 	ctx := context.Background()
 
 	if config.SourceConfig != nil {
-		source := streaming.NewSource(ctx, config.SourceConfig)
-		err := source.Start()
+		source := streaming.NewSource(ctx, config)
+		err = source.Start()
+		if err != nil {
+			panic(err)
+		}
+	} else if config.DestinationConfig != nil {
+		dest := streaming.NewDestination(ctx, config.DestinationConfig)
+		err = dest.Start()
 		if err != nil {
 			panic(err)
 		}
 	} else {
-		dest := streaming.NewDestination(ctx, config.DestinationConfig)
-		err := dest.Start()
-		if err != nil {
-			panic(err)
-		}
+		panic("either source or destination config must be specified")
 	}
 }

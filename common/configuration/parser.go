@@ -80,6 +80,14 @@ func ParseJsonString[T interface{}](t *T, configString string) error {
 	return nil
 }
 
+// ParseCliArgs is capable of parsing configuration files specified as a list of command line arguments.
+// Other than argument 0, all arguments are assumed to be paths to configuration files.
+func ParseCliArgs[T interface{}](t *T) error {
+	configFiles := os.Args[1:]
+	err := ParseJsonFiles(t, configFiles...)
+	return err
+}
+
 // determineErrorPosition determines the line and column number of the error in the json string.
 // Useful for debugging malformed json strings/files.
 func determineErrorPosition(jsonString string, offset int64) (lineNumber int64, columnNumber int64) {

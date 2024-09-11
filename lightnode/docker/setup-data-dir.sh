@@ -5,7 +5,7 @@
 # Default arguments.
 source docker/default-args.sh
 # Local overrides for arguments.
-source docker/args.sh
+source docker/args.sh 2>/dev/null
 
 # Create the data directory if it doesn't exist.
 mkdir -p $DATA_PATH

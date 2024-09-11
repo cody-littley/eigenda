@@ -30,7 +30,7 @@ RUN make build
 
 # In order to equip this image with a shell for debugging,
 # swap out the "FROM scratch" below with "FROM golang:1.21.12-bookworm"
-FROM scratch AS final
+FROM golang:1.21.12-bookworm AS final
 
 # Copy over files needed for lnode user.
 COPY --from=base /usr/share/zoneinfo /usr/share/zoneinfo
@@ -45,4 +45,4 @@ WORKDIR /home/lnode
 COPY --from=base /home/lnode/eigenda/lightnode/bin/lnode /home/lnode/lnode
 
 # Run the light node when the container starts.
-CMD ["/home/lnode/lnode"]
+#CMD ["/home/lnode/lnode"]

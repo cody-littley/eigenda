@@ -6,7 +6,6 @@ import (
 	"github.com/Layr-Labs/eigenda/api/grpc/lightnode"
 	"golang.org/x/exp/rand"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 	"net"
 	"time"
 )
@@ -17,12 +16,12 @@ type Source struct {
 	lightnode.SourceServer
 
 	ctx    context.Context
-	config *SourceConfig
+	config *Config
 }
 
 func NewSource(
 	ctx context.Context,
-	config *SourceConfig) *Source {
+	config *Config) *Source {
 
 	if config == nil {
 		panic("config cannot be nil")
@@ -36,29 +35,36 @@ func NewSource(
 
 func (s *Source) Start() error {
 
-	selfAddress := "0.0.0.0:12345"
-	listener, err := net.Listen("tcp", selfAddress)
+	fmt.Printf("listening on :%d\n", s.config.Port)
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.config.Port))
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
 
-	grpcOptions := grpc.MaxRecvMsgSize(1024 * 1024 * 300) // 300 MiB
-	grpcServer := grpc.NewServer(grpcOptions)
+	fmt.Println("Creating GRPC server")
 
-	reflection.Register(grpcServer)
+	grpcServer := grpc.NewServer()
+
 	lightnode.RegisterSourceServer(grpcServer, s)
 
-	err = grpcServer.Serve(listener)
-	if err != nil {
-		return fmt.Errorf("failed to serve: %w", err)
-	}
+	fmt.Println("attaching GRPC server to socket")
 
-	switch s.config.TransferStrategy {
+	go func() {
+		err = grpcServer.Serve(listener)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	fmt.Println("Sever online")
+
+	switch s.config.SourceConfig.TransferStrategy {
 	case Stream:
 		// No need to do anything, destination will initiate the stream
 		select {
 		case <-s.ctx.Done():
 			fmt.Println("context cancelled, exiting")
+			grpcServer.GracefulStop()
 		}
 	case Put:
 		// TODO implement me
@@ -68,12 +74,14 @@ func (s *Source) Start() error {
 		panic("implement me")
 	}
 
+	fmt.Println("Server shutting down")
+
 	return nil
 }
 
 func (s *Source) StreamData(request *lightnode.StreamDataRequest, server lightnode.Source_StreamDataServer) error {
 
-	period := time.Duration(1e9 / s.config.MessagesPerSecond)
+	period := time.Duration(1e9 / s.config.SourceConfig.MessagesPerSecond)
 	ticker := time.NewTicker(period)
 
 	select {
@@ -82,7 +90,7 @@ func (s *Source) StreamData(request *lightnode.StreamDataRequest, server lightno
 	case <-server.Context().Done():
 		fmt.Println("server context cancelled, exiting")
 	case <-ticker.C:
-		data := make([]byte, s.config.BytesPerMessage)
+		data := make([]byte, s.config.SourceConfig.BytesPerMessage)
 		_, err := rand.Read(data)
 		if err != nil {
 			return err
