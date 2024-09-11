@@ -46,7 +46,7 @@ func (d *Destination) Start() error {
 // stream streams data from the source to the destination
 func (d *Destination) stream() error {
 
-	target := "0.0.0.0:12345"
+	target := d.config.SourceHostname
 
 	conn, err := grpc.Dial(
 		target,
