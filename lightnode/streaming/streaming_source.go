@@ -6,6 +6,7 @@ import (
 	"github.com/Layr-Labs/eigenda/api/grpc/lightnode"
 	"golang.org/x/exp/rand"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -37,8 +38,8 @@ type Source struct {
 	// A map from connection ID to the index of the next message to send.
 	nextMessageIndex map[int]uint64
 
-	// Protects access to the maps for each connection.
-	connectionMapLock sync.Mutex
+	// Protects access to the metadata for each connection.
+	connectionMetadataLock sync.Mutex
 }
 
 func NewSource(
@@ -73,7 +74,6 @@ func NewSource(
 }
 
 func (s *Source) Start() error {
-
 	go s.monitor()
 
 	fmt.Printf("listening on :%d\n", s.config.Port)
@@ -137,7 +137,6 @@ func (s *Source) monitor() {
 			i++
 
 			if bytesSent >= uint64(s.config.SourceConfig.GigabytesToSend)*(1<<30) {
-				// TODO end the program and report
 				elapsed := time.Since(startTime)
 				s.cancel()
 
@@ -154,9 +153,9 @@ func (s *Source) monitor() {
 
 				fmt.Println("-----------------------------")
 
-				s.connectionMapLock.Lock()
+				s.connectionMetadataLock.Lock()
 				numberOfConnections := s.nextConnectionID
-				s.connectionMapLock.Unlock()
+				s.connectionMetadataLock.Unlock()
 
 				expectedBytesPerSecond := float64(
 					s.config.SourceConfig.MessagesPerSecond *
@@ -181,8 +180,8 @@ func (s *Source) monitor() {
 // The first integer returned is the first message index that should be sent (inclusive), and the second integer is the
 // last message index that should be sent (exclusive).
 func (s *Source) getUnsentMessages(connectionID int, now time.Time) (int, int) {
-	s.connectionMapLock.Lock()
-	defer s.connectionMapLock.Unlock()
+	s.connectionMetadataLock.Lock()
+	defer s.connectionMetadataLock.Unlock()
 
 	totalTimeElapsed := now.Sub(s.connectionStartTime[connectionID])
 	totalMessagesThatShouldBeSent := int(totalTimeElapsed.Seconds() * float64(s.config.SourceConfig.MessagesPerSecond))
@@ -198,8 +197,8 @@ func (s *Source) getUnsentMessages(connectionID int, now time.Time) (int, int) {
 
 // Register a new connection. Returns the ID of the connection.
 func (s *Source) registerNewConnection() int {
-	s.connectionMapLock.Lock()
-	defer s.connectionMapLock.Unlock()
+	s.connectionMetadataLock.Lock()
+	defer s.connectionMetadataLock.Unlock()
 
 	connectionID := s.nextConnectionID
 	s.nextConnectionID++
@@ -248,14 +247,82 @@ func (s *Source) StreamData(request *lightnode.StreamDataRequest, server lightno
 	return nil
 }
 
-func (s *Source) RequestPushes(context.Context, *lightnode.RequestPushesRequest) (*lightnode.RequestPushesReply, error) {
-	// TODO implement me
-	panic("implement me")
+func (s *Source) newConnection(target string) (*grpc.ClientConn, *lightnode.DestinationClient, error) {
+	//fmt.Printf("dialing %s\n", target)
 
-	return nil, nil
+	conn, err := grpc.DialContext(
+		s.ctx,
+		target,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock())
+	if err != nil {
+		fmt.Printf("failed to dial: %v\n", err)
+	}
+
+	client := lightnode.NewDestinationClient(conn)
+
+	//fmt.Println("connection established")
+
+	return conn, &client, nil
 }
 
-func (s *Source) GetData(ctx context.Context, request *lightnode.GetDataRequest) (*lightnode.GetDataReply, error) {
-	//TODO implement me
-	panic("implement me")
+func (s *Source) RequestPushes(ctx context.Context, request *lightnode.RequestPushesRequest) (*lightnode.RequestPushesReply, error) {
+	fmt.Printf("received request for pushes\n")
+
+	ticker := time.NewTicker(time.Second / time.Duration(s.config.SourceConfig.PushesPerSecond))
+
+	connectionID := s.registerNewConnection()
+
+	destination := request.Destination
+
+	go func() {
+		var conn *grpc.ClientConn
+		var client *lightnode.DestinationClient
+
+		for {
+
+			select {
+			case <-s.ctx.Done():
+				return
+			case <-ticker.C:
+				if conn == nil {
+					var err error
+					conn, client, err = s.newConnection(destination)
+					if err != nil {
+						fmt.Printf("failed to connect: %v\n", err)
+						return
+					}
+				}
+
+				startIndex, endIndex := s.getUnsentMessages(connectionID, time.Now())
+				message := lightnode.ReceiveDataRequest{
+					Data: make([][]byte, 0, endIndex-startIndex),
+				}
+
+				for dataIndex := startIndex; dataIndex < endIndex; dataIndex++ {
+					data := s.randomData[dataIndex%len(s.randomData)]
+					message.Data = append(message.Data, data)
+				}
+				if s.captureMetrics.Load() {
+					s.bytesSent.Add(uint64(s.config.SourceConfig.BytesPerMessage * (endIndex - startIndex)))
+				}
+
+				_, err := (*client).ReceiveData(s.ctx, &message)
+				if err != nil {
+					fmt.Printf("failed to send data: %v\n", err)
+				}
+
+				if !s.config.SourceConfig.KeepConnectionsOpen {
+					err = conn.Close()
+					if err != nil {
+						fmt.Printf("failed to close connection: %v\n", err)
+					}
+					conn = nil
+					client = nil
+				}
+			}
+		}
+	}()
+
+	return &lightnode.RequestPushesReply{}, nil
 }

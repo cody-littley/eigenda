@@ -7,17 +7,19 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"io"
+	"net"
 	"sync"
 )
 
 type Destination struct {
+	lightnode.DestinationServer
 	ctx    context.Context
-	config *DestinationConfig
+	config *Config
 }
 
 func NewDestination(
 	ctx context.Context,
-	config *DestinationConfig) *Destination {
+	config *Config) *Destination {
 	if config == nil {
 		panic("config cannot be nil")
 	}
@@ -28,15 +30,12 @@ func NewDestination(
 }
 
 func (d *Destination) Start() error {
-	switch d.config.TransferStrategy {
+	switch d.config.DestinationConfig.TransferStrategy {
 	case Stream:
 		d.stream()
 	case Put:
-		d.put()
-	case Get:
-		d.get()
+		return d.put()
 	}
-
 	return nil
 }
 
@@ -44,19 +43,19 @@ func (d *Destination) Start() error {
 func (d *Destination) stream() {
 
 	waitGroup := sync.WaitGroup{}
-	waitGroup.Add(d.config.NumberOfConnections)
+	waitGroup.Add(d.config.DestinationConfig.NumberOfConnections)
 
-	for i := 0; i < d.config.NumberOfConnections; i++ {
+	for i := 0; i < d.config.DestinationConfig.NumberOfConnections; i++ {
 		go func() {
 			defer waitGroup.Done()
 
-			target := d.config.SourceHostname
+			target := d.config.DestinationConfig.SourceHostname
 
 			fmt.Printf("dialing %s\n", target)
 
 			conn, err := grpc.DialContext(
 				d.ctx,
-				d.config.SourceHostname,
+				d.config.DestinationConfig.SourceHostname,
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 				grpc.WithBlock())
 			if err != nil {
@@ -91,12 +90,74 @@ func (d *Destination) stream() {
 	waitGroup.Wait()
 }
 
-func (d *Destination) put() {
-	// TODO implement me
-	panic("implement me")
+func (d *Destination) put() error {
+
+	fmt.Printf("listening on :%d\n", d.config.Port)
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", d.config.Port))
+	if err != nil {
+		return fmt.Errorf("failed to listen: %w", err)
+	}
+
+	fmt.Println("Creating GRPC server")
+
+	grpcServer := grpc.NewServer()
+
+	lightnode.RegisterDestinationServer(grpcServer, d)
+
+	fmt.Println("attaching GRPC server to socket")
+
+	go func() {
+		err = grpcServer.Serve(listener)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	fmt.Println("Server online")
+
+	////////////////////////////////////
+
+	for i := 0; i < d.config.DestinationConfig.NumberOfConnections; i++ {
+		target := d.config.DestinationConfig.SourceHostname
+
+		fmt.Printf("dialing %s\n", target)
+
+		conn, err := grpc.DialContext(
+			d.ctx,
+			d.config.DestinationConfig.SourceHostname,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithBlock())
+		if err != nil {
+			fmt.Printf("failed to dial: %v\n", err)
+		}
+		defer conn.Close()
+
+		fmt.Println("connection established")
+
+		client := lightnode.NewSourceClient(conn)
+
+		selfAddress := fmt.Sprintf("%s:%d", d.config.DestinationConfig.SelfIP, d.config.Port)
+
+		_, err = client.RequestPushes(d.ctx, &lightnode.RequestPushesRequest{
+			Destination: selfAddress,
+		})
+		if err != nil {
+			fmt.Printf("failed to request pushes: %v\n", err)
+		} else {
+			fmt.Println("pushes requested")
+		}
+	}
+
+	select {
+	case <-d.ctx.Done():
+		fmt.Println("context cancelled, exiting")
+		grpcServer.GracefulStop()
+	}
+
+	fmt.Println("Server shutting down")
+	return nil
 }
 
-func (d *Destination) get() {
-	// TODO implement me
-	panic("implement me")
+func (d *Destination) ReceiveData(ctx context.Context, data *lightnode.ReceiveDataRequest) (*lightnode.ReceiveDataReply, error) {
+	return &lightnode.ReceiveDataReply{}, nil
 }

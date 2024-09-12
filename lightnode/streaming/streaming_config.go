@@ -16,7 +16,6 @@ type Config struct {
 const (
 	Stream = 1
 	Put    = 2
-	Get    = 3
 )
 
 // SourceConfig is configuration for a node that acts as a source of data.
@@ -57,18 +56,14 @@ type DestinationConfig struct {
 	// The IP address/port of the source node. Ignored if the source initiates the RPC.
 	SourceHostname string
 
+	// The IP address of this node.
+	SelfIP string
+
 	// The type of transfer strategy to use. Either Stream, Put, or Get.
 	TransferStrategy int
-
-	// If the transfer strategy requires the destination to initiate the transfer (i.e. Get),
-	// then this is the number of transfer requests per second.
-	RequestsPerSecond int // TODO rename
 
 	// The number of parallel connections to make to the source. Ignored if the source initiates the RPC.
 	// The number of messages per second are split evenly over all connections, such that the sum of all
 	// connections' messages per second is equal to the MessagesPerSecond field.
 	NumberOfConnections int
-
-	// If true then do not close connections for Put/Get after each transfer.
-	KeepConnectionsOpen bool
 }

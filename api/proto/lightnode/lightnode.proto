@@ -6,7 +6,6 @@ option go_package = "github.com/Layr-Labs/eigenda/api/grpc/lightnode";
 service Source {
   rpc StreamData(StreamDataRequest) returns (stream StreamDataReply) {}
   rpc RequestPushes(RequestPushesRequest) returns (RequestPushesReply) {}
-  rpc GetData(GetDataRequest) returns (GetDataReply) {}
 }
 
 service Destination {
@@ -29,16 +28,8 @@ message RequestPushesReply {
 
 }
 
-message GetDataRequest {
-  bytes key = 1;
-}
-
-message GetDataReply {
-  bytes data = 1;
-}
-
 message ReceiveDataRequest {
-  bytes data = 1;
+  repeated bytes data = 1;
 }
 
 message ReceiveDataReply {

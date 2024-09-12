@@ -23,7 +23,7 @@ func main() {
 			panic(err)
 		}
 	} else if config.DestinationConfig != nil {
-		dest := streaming.NewDestination(ctx, config.DestinationConfig)
+		dest := streaming.NewDestination(ctx, config)
 		err = dest.Start()
 		if err != nil {
 			panic(err)

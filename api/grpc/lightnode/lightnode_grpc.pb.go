@@ -21,7 +21,6 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	Source_StreamData_FullMethodName    = "/node.Source/StreamData"
 	Source_RequestPushes_FullMethodName = "/node.Source/RequestPushes"
-	Source_GetData_FullMethodName       = "/node.Source/GetData"
 )
 
 // SourceClient is the client API for Source service.
@@ -30,7 +29,6 @@ const (
 type SourceClient interface {
 	StreamData(ctx context.Context, in *StreamDataRequest, opts ...grpc.CallOption) (Source_StreamDataClient, error)
 	RequestPushes(ctx context.Context, in *RequestPushesRequest, opts ...grpc.CallOption) (*RequestPushesReply, error)
-	GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (*GetDataReply, error)
 }
 
 type sourceClient struct {
@@ -82,22 +80,12 @@ func (c *sourceClient) RequestPushes(ctx context.Context, in *RequestPushesReque
 	return out, nil
 }
 
-func (c *sourceClient) GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (*GetDataReply, error) {
-	out := new(GetDataReply)
-	err := c.cc.Invoke(ctx, Source_GetData_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // SourceServer is the server API for Source service.
 // All implementations must embed UnimplementedSourceServer
 // for forward compatibility
 type SourceServer interface {
 	StreamData(*StreamDataRequest, Source_StreamDataServer) error
 	RequestPushes(context.Context, *RequestPushesRequest) (*RequestPushesReply, error)
-	GetData(context.Context, *GetDataRequest) (*GetDataReply, error)
 	mustEmbedUnimplementedSourceServer()
 }
 
@@ -110,9 +98,6 @@ func (UnimplementedSourceServer) StreamData(*StreamDataRequest, Source_StreamDat
 }
 func (UnimplementedSourceServer) RequestPushes(context.Context, *RequestPushesRequest) (*RequestPushesReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestPushes not implemented")
-}
-func (UnimplementedSourceServer) GetData(context.Context, *GetDataRequest) (*GetDataReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetData not implemented")
 }
 func (UnimplementedSourceServer) mustEmbedUnimplementedSourceServer() {}
 
@@ -166,24 +151,6 @@ func _Source_RequestPushes_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Source_GetData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetDataRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(SourceServer).GetData(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Source_GetData_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SourceServer).GetData(ctx, req.(*GetDataRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // Source_ServiceDesc is the grpc.ServiceDesc for Source service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -194,10 +161,6 @@ var Source_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RequestPushes",
 			Handler:    _Source_RequestPushes_Handler,
-		},
-		{
-			MethodName: "GetData",
-			Handler:    _Source_GetData_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
