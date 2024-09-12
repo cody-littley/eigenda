@@ -32,14 +32,9 @@ func (d *Destination) Start() error {
 	case Stream:
 		d.stream()
 	case Put:
-		// No need to do anything, source will initiate
-		select {
-		case <-d.ctx.Done():
-			fmt.Println("context cancelled, exiting")
-		}
+		d.put()
 	case Get:
-		// TODO implement me
-		panic("implement me")
+		d.get()
 	}
 
 	return nil
@@ -80,7 +75,6 @@ func (d *Destination) stream() {
 
 			fmt.Println("about to enter loop") // TODO
 
-			// TODO how to break out if local context is cancelled?
 			for {
 				_, err := streamClient.Recv()
 
@@ -95,4 +89,14 @@ func (d *Destination) stream() {
 	}
 
 	waitGroup.Wait()
+}
+
+func (d *Destination) put() {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (d *Destination) get() {
+	// TODO implement me
+	panic("implement me")
 }

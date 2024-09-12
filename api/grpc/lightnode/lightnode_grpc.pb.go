@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Source_StreamData_FullMethodName = "/node.Source/StreamData"
-	Source_GetData_FullMethodName    = "/node.Source/GetData"
+	Source_StreamData_FullMethodName    = "/node.Source/StreamData"
+	Source_RequestPushes_FullMethodName = "/node.Source/RequestPushes"
+	Source_GetData_FullMethodName       = "/node.Source/GetData"
 )
 
 // SourceClient is the client API for Source service.
@@ -28,6 +29,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SourceClient interface {
 	StreamData(ctx context.Context, in *StreamDataRequest, opts ...grpc.CallOption) (Source_StreamDataClient, error)
+	RequestPushes(ctx context.Context, in *RequestPushesRequest, opts ...grpc.CallOption) (*RequestPushesReply, error)
 	GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (*GetDataReply, error)
 }
 
@@ -71,6 +73,15 @@ func (x *sourceStreamDataClient) Recv() (*StreamDataReply, error) {
 	return m, nil
 }
 
+func (c *sourceClient) RequestPushes(ctx context.Context, in *RequestPushesRequest, opts ...grpc.CallOption) (*RequestPushesReply, error) {
+	out := new(RequestPushesReply)
+	err := c.cc.Invoke(ctx, Source_RequestPushes_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *sourceClient) GetData(ctx context.Context, in *GetDataRequest, opts ...grpc.CallOption) (*GetDataReply, error) {
 	out := new(GetDataReply)
 	err := c.cc.Invoke(ctx, Source_GetData_FullMethodName, in, out, opts...)
@@ -85,6 +96,7 @@ func (c *sourceClient) GetData(ctx context.Context, in *GetDataRequest, opts ...
 // for forward compatibility
 type SourceServer interface {
 	StreamData(*StreamDataRequest, Source_StreamDataServer) error
+	RequestPushes(context.Context, *RequestPushesRequest) (*RequestPushesReply, error)
 	GetData(context.Context, *GetDataRequest) (*GetDataReply, error)
 	mustEmbedUnimplementedSourceServer()
 }
@@ -95,6 +107,9 @@ type UnimplementedSourceServer struct {
 
 func (UnimplementedSourceServer) StreamData(*StreamDataRequest, Source_StreamDataServer) error {
 	return status.Errorf(codes.Unimplemented, "method StreamData not implemented")
+}
+func (UnimplementedSourceServer) RequestPushes(context.Context, *RequestPushesRequest) (*RequestPushesReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RequestPushes not implemented")
 }
 func (UnimplementedSourceServer) GetData(context.Context, *GetDataRequest) (*GetDataReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetData not implemented")
@@ -133,6 +148,24 @@ func (x *sourceStreamDataServer) Send(m *StreamDataReply) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _Source_RequestPushes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestPushesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SourceServer).RequestPushes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Source_RequestPushes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SourceServer).RequestPushes(ctx, req.(*RequestPushesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Source_GetData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetDataRequest)
 	if err := dec(in); err != nil {
@@ -158,6 +191,10 @@ var Source_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "node.Source",
 	HandlerType: (*SourceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "RequestPushes",
+			Handler:    _Source_RequestPushes_Handler,
+		},
 		{
 			MethodName: "GetData",
 			Handler:    _Source_GetData_Handler,

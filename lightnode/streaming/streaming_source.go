@@ -7,6 +7,7 @@ import (
 	"golang.org/x/exp/rand"
 	"google.golang.org/grpc"
 	"net"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -23,7 +24,21 @@ type Source struct {
 	captureMetrics atomic.Bool
 	bytesSent      atomic.Uint64
 
+	// Reusable random data to send.
 	randomData [][]byte
+
+	// The ID of the next connection to be created.
+	nextConnectionID int
+
+	// A map from connection ID to the time the connection was started.
+	// This is used to determine the number of messages that should have been sent on a connection.
+	connectionStartTime map[int]time.Time
+
+	// A map from connection ID to the index of the next message to send.
+	nextMessageIndex map[int]uint64
+
+	// Protects access to the maps for each connection.
+	connectionMapLock sync.Mutex
 }
 
 func NewSource(
@@ -48,10 +63,12 @@ func NewSource(
 	}
 
 	return &Source{
-		ctx:        ctx,
-		cancel:     cancel,
-		config:     config,
-		randomData: randomData,
+		ctx:                 ctx,
+		cancel:              cancel,
+		config:              config,
+		randomData:          randomData,
+		connectionStartTime: make(map[int]time.Time),
+		nextMessageIndex:    make(map[int]uint64),
 	}
 }
 
@@ -82,20 +99,11 @@ func (s *Source) Start() error {
 
 	fmt.Println("Server online")
 
-	switch s.config.SourceConfig.TransferStrategy {
-	case Stream:
-		// No need to do anything, destination will initiate the stream
-		select {
-		case <-s.ctx.Done():
-			fmt.Println("context cancelled, exiting")
-			grpcServer.GracefulStop()
-		}
-	case Put:
-		// TODO implement me
-		panic("implement me")
-	case Get:
-		// TODO implement me
-		panic("implement me")
+	// No need to do anything, destination will initiate
+	select {
+	case <-s.ctx.Done():
+		fmt.Println("context cancelled, exiting")
+		grpcServer.GracefulStop()
 	}
 
 	fmt.Println("Server shutting down")
@@ -124,19 +132,19 @@ func (s *Source) monitor() {
 			bytesSent := s.bytesSent.Load()
 
 			if i%100 == 0 {
-				fmt.Printf("sent %f.2 mb\n", float64(bytesSent)/1e6)
+				fmt.Printf("sent %.2f mb\n", float64(bytesSent)/(1<<20))
 			}
 			i++
 
-			if bytesSent >= uint64(s.config.SourceConfig.GigabytesToSend)*1e9 {
+			if bytesSent >= uint64(s.config.SourceConfig.GigabytesToSend)*(1<<30) {
 				// TODO end the program and report
 				elapsed := time.Since(startTime)
 				s.cancel()
 
 				bytesPerSecond := float64(bytesSent) / elapsed.Seconds()
-				kilobytesPerSecond := bytesPerSecond / 1e3
-				megabytesPerSecond := kilobytesPerSecond / 1e3
-				gigabytesPerSecond := megabytesPerSecond / 1e3
+				kilobytesPerSecond := bytesPerSecond / (1 << 10)
+				megabytesPerSecond := kilobytesPerSecond / (1 << 10)
+				gigabytesPerSecond := megabytesPerSecond / (1 << 10)
 
 				fmt.Printf("sent %d bytes in %v\n", bytesSent, elapsed)
 				fmt.Printf("sent at %.2f B/s\n", bytesPerSecond)
@@ -144,19 +152,70 @@ func (s *Source) monitor() {
 				fmt.Printf("sent at %.2f MB/s\n", megabytesPerSecond)
 				fmt.Printf("sent at %.2f GB/s\n", gigabytesPerSecond)
 
+				fmt.Println("-----------------------------")
+
+				s.connectionMapLock.Lock()
+				numberOfConnections := s.nextConnectionID
+				s.connectionMapLock.Unlock()
+
+				expectedBytesPerSecond := float64(
+					s.config.SourceConfig.MessagesPerSecond *
+						s.config.SourceConfig.BytesPerMessage *
+						numberOfConnections)
+				expectedKilobytesPerSecond := expectedBytesPerSecond / (1 << 10)
+				expectedMegabytesPerSecond := expectedKilobytesPerSecond / (1 << 10)
+				expectedGigabytesPerSecond := expectedMegabytesPerSecond / (1 << 10)
+
+				fmt.Printf("expected %.2f B/s\n", expectedBytesPerSecond)
+				fmt.Printf("expected %.2f KB/s\n", expectedKilobytesPerSecond)
+				fmt.Printf("expected %.2f MB/s\n", expectedMegabytesPerSecond)
+				fmt.Printf("expected %.2f GB/s\n", expectedGigabytesPerSecond)
+
 				return
 			}
 		}
 	}
+}
 
+// getUnsentMessages returns the number of messages are now due to be sent to a particular destination.
+// The first integer returned is the first message index that should be sent (inclusive), and the second integer is the
+// last message index that should be sent (exclusive).
+func (s *Source) getUnsentMessages(connectionID int, now time.Time) (int, int) {
+	s.connectionMapLock.Lock()
+	defer s.connectionMapLock.Unlock()
+
+	totalTimeElapsed := now.Sub(s.connectionStartTime[connectionID])
+	totalMessagesThatShouldBeSent := int(totalTimeElapsed.Seconds() * float64(s.config.SourceConfig.MessagesPerSecond))
+	remainingMessagesToSend := totalMessagesThatShouldBeSent - int(s.nextMessageIndex[connectionID])
+
+	lowerBound := int(s.nextMessageIndex[connectionID])
+	upperBound := int(s.nextMessageIndex[connectionID]) + remainingMessagesToSend
+
+	s.nextMessageIndex[connectionID] = uint64(upperBound)
+
+	return lowerBound, upperBound
+}
+
+// Register a new connection. Returns the ID of the connection.
+func (s *Source) registerNewConnection() int {
+	s.connectionMapLock.Lock()
+	defer s.connectionMapLock.Unlock()
+
+	connectionID := s.nextConnectionID
+	s.nextConnectionID++
+
+	s.connectionStartTime[connectionID] = time.Now()
+	s.nextMessageIndex[connectionID] = 0
+
+	return connectionID
 }
 
 func (s *Source) StreamData(request *lightnode.StreamDataRequest, server lightnode.Source_StreamDataServer) error {
 
-	period := time.Duration(1e9 / s.config.SourceConfig.MessagesPerSecond)
-	ticker := time.NewTicker(period)
+	connectionID := s.registerNewConnection()
 
-	i := 0
+	period := time.Duration(1e9 / s.config.SourceConfig.PushesPerSecond)
+	ticker := time.NewTicker(period)
 
 	for {
 		select {
@@ -166,29 +225,34 @@ func (s *Source) StreamData(request *lightnode.StreamDataRequest, server lightno
 			fmt.Println("server context cancelled, exiting")
 			return nil
 		case <-ticker.C:
-			data := s.randomData[i%100]
-			i++
-			_, err := rand.Read(data)
-			if err != nil {
-				return err
-			}
 
-			//fmt.Println("sending data") // TODO
+			startIndex, endIndex := s.getUnsentMessages(connectionID, time.Now())
 
-			err = server.Send(&lightnode.StreamDataReply{
-				Data: data,
-			})
-			if err != nil {
-				return err
-			}
+			for dataIndex := startIndex; dataIndex < endIndex; dataIndex++ {
+				data := s.randomData[dataIndex%len(s.randomData)]
 
-			if s.captureMetrics.Load() {
-				s.bytesSent.Add(uint64(len(data)))
+				err := server.Send(&lightnode.StreamDataReply{
+					Data: data,
+				})
+				if err != nil {
+					return err
+				}
+
+				if s.captureMetrics.Load() {
+					s.bytesSent.Add(uint64(len(data)))
+				}
 			}
 		}
 	}
 
 	return nil
+}
+
+func (s *Source) RequestPushes(context.Context, *lightnode.RequestPushesRequest) (*lightnode.RequestPushesReply, error) {
+	// TODO implement me
+	panic("implement me")
+
+	return nil, nil
 }
 
 func (s *Source) GetData(ctx context.Context, request *lightnode.GetDataRequest) (*lightnode.GetDataReply, error) {
