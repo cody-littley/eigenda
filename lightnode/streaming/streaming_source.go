@@ -256,7 +256,7 @@ func (s *Source) newConnection(target string) (*grpc.ClientConn, *lightnode.Dest
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock())
 	if err != nil {
-		fmt.Printf("failed to dial: %v\n", err)
+		return nil, nil, fmt.Errorf("failed to dial: %w", err)
 	}
 
 	client := lightnode.NewDestinationClient(conn)
@@ -310,12 +310,14 @@ func (s *Source) RequestPushes(ctx context.Context, request *lightnode.RequestPu
 				_, err := (*client).ReceiveData(s.ctx, &message)
 				if err != nil {
 					fmt.Printf("failed to send data: %v\n", err)
+					return
 				}
 
 				if !s.config.SourceConfig.KeepConnectionsOpen {
 					err = conn.Close()
 					if err != nil {
 						fmt.Printf("failed to close connection: %v\n", err)
+						return
 					}
 					conn = nil
 					client = nil
