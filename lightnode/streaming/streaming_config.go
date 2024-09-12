@@ -40,6 +40,14 @@ type SourceConfig struct {
 	// are split evenly over all connections, such that the sum of all connections' messages per second
 	// is equal to this value.
 	MessagesPerSecond int
+
+	// The number of seconds after program start to begin capturing metrics. Gives me time to start
+	// all of the network participants and get them into a steady state.
+	SecondsBeforeMetricsCapture int
+
+	// Once metrics capture begins, the system will measure the amount of time required to send this many gigabytes.
+	// This is the sum of all connections, and doesn't take into account if some destinations are slower than others.
+	GigabytesToSend int
 }
 
 // DestinationConfig is configuration for a node that acts as a destination of data.

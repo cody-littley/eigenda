@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"io"
+	"sync"
 )
 
 type Destination struct {
@@ -29,7 +30,7 @@ func NewDestination(
 func (d *Destination) Start() error {
 	switch d.config.TransferStrategy {
 	case Stream:
-		return d.stream()
+		d.stream()
 	case Put:
 		// No need to do anything, source will initiate
 		select {
@@ -45,45 +46,53 @@ func (d *Destination) Start() error {
 }
 
 // stream streams data from the source to the destination
-func (d *Destination) stream() error {
+func (d *Destination) stream() {
 
-	target := d.config.SourceHostname
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(d.config.NumberOfConnections)
 
-	fmt.Printf("dialing %s\n", target)
+	for i := 0; i < d.config.NumberOfConnections; i++ {
+		go func() {
+			defer waitGroup.Done()
 
-	conn, err := grpc.DialContext(
-		d.ctx,
-		d.config.SourceHostname,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock())
-	if err != nil {
-		return err
+			target := d.config.SourceHostname
+
+			fmt.Printf("dialing %s\n", target)
+
+			conn, err := grpc.DialContext(
+				d.ctx,
+				d.config.SourceHostname,
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+				grpc.WithBlock())
+			if err != nil {
+				fmt.Printf("failed to dial: %v\n", err)
+			}
+			defer conn.Close()
+
+			fmt.Println("connection established")
+
+			client := lightnode.NewSourceClient(conn)
+
+			streamClient, err := client.StreamData(d.ctx, &lightnode.StreamDataRequest{})
+			if err != nil {
+				fmt.Printf("failed to stream data: %v\n", err)
+			}
+
+			fmt.Println("about to enter loop") // TODO
+
+			// TODO how to break out if local context is cancelled?
+			for {
+				_, err := streamClient.Recv()
+
+				if err == io.EOF {
+					break
+				} else if err != nil {
+					fmt.Printf("failed to receive: %v\n", err)
+					break
+				}
+			}
+		}()
 	}
-	defer conn.Close()
 
-	fmt.Println("connection established")
-
-	client := lightnode.NewSourceClient(conn)
-
-	streamClient, err := client.StreamData(d.ctx, &lightnode.StreamDataRequest{})
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("about to enter loop") // TODO
-
-	// TODO how to break out if local context is cancelled?
-	for {
-		reply, err := streamClient.Recv()
-
-		if err == io.EOF {
-			fmt.Printf("EOF\n")
-			break
-		} else if err != nil {
-			return fmt.Errorf("failed to receive: %w", err)
-		}
-		fmt.Printf("got data of length %d\n", len(reply.Data))
-	}
-
-	return nil
+	waitGroup.Wait()
 }
