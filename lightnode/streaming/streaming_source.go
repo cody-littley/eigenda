@@ -140,22 +140,13 @@ func (s *Source) monitor() {
 				elapsed := time.Since(startTime)
 				s.cancel()
 
-				bytesPerSecond := float64(bytesSent) / elapsed.Seconds()
-				kilobytesPerSecond := bytesPerSecond / (1 << 10)
-				megabytesPerSecond := kilobytesPerSecond / (1 << 10)
-				gigabytesPerSecond := megabytesPerSecond / (1 << 10)
-
-				fmt.Printf("sent %d bytes in %v\n", bytesSent, elapsed)
-				fmt.Printf("sent at %.2f B/s\n", bytesPerSecond)
-				fmt.Printf("sent at %.2f KB/s\n", kilobytesPerSecond)
-				fmt.Printf("sent at %.2f MB/s\n", megabytesPerSecond)
-				fmt.Printf("sent at %.2f GB/s\n", gigabytesPerSecond)
-
-				fmt.Println("-----------------------------")
-
 				s.connectionMetadataLock.Lock()
 				numberOfConnections := s.nextConnectionID
 				s.connectionMetadataLock.Unlock()
+
+				fmt.Printf("Total number of connections: %d\n", numberOfConnections)
+
+				fmt.Println("-----------------------------")
 
 				expectedBytesPerSecond := float64(
 					s.config.SourceConfig.MessagesPerSecond *
@@ -169,6 +160,19 @@ func (s *Source) monitor() {
 				fmt.Printf("expected %.2f KB/s\n", expectedKilobytesPerSecond)
 				fmt.Printf("expected %.2f MB/s\n", expectedMegabytesPerSecond)
 				fmt.Printf("expected %.2f GB/s\n", expectedGigabytesPerSecond)
+
+				fmt.Println("-----------------------------")
+
+				bytesPerSecond := float64(bytesSent) / elapsed.Seconds()
+				kilobytesPerSecond := bytesPerSecond / (1 << 10)
+				megabytesPerSecond := kilobytesPerSecond / (1 << 10)
+				gigabytesPerSecond := megabytesPerSecond / (1 << 10)
+
+				fmt.Printf("sent %d bytes in %v\n", bytesSent, elapsed)
+				fmt.Printf("sent at %.2f B/s\n", bytesPerSecond)
+				fmt.Printf("sent at %.2f KB/s\n", kilobytesPerSecond)
+				fmt.Printf("sent at %.2f MB/s\n", megabytesPerSecond)
+				fmt.Printf("sent at %.2f GB/s\n", gigabytesPerSecond)
 
 				return
 			}
