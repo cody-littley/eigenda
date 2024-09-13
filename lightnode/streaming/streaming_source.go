@@ -293,7 +293,7 @@ func (s *Source) RequestPushes(ctx context.Context, request *lightnode.RequestPu
 					var err error
 					conn, client, err = s.newConnection(destination)
 					if err != nil {
-						//fmt.Printf("failed to connect: %v\n", err)
+						fmt.Printf("failed to connect: %v\n", err)
 						return
 					}
 				}
@@ -313,7 +313,7 @@ func (s *Source) RequestPushes(ctx context.Context, request *lightnode.RequestPu
 
 				_, err := (*client).ReceiveData(s.ctx, &message)
 				if err != nil {
-					fmt.Printf("failed to send data: %v\n", err)
+					//fmt.Printf("failed to send data: %v\n", err) // TODO
 					return
 				}
 
