@@ -293,7 +293,7 @@ func (s *Source) RequestPushes(ctx context.Context, request *lightnode.RequestPu
 					var err error
 					conn, client, err = s.newConnection(destination)
 					if err != nil {
-						fmt.Printf("failed to connect: %v\n", err)
+						//fmt.Printf("failed to connect: %v\n", err) // TODO
 						return
 					}
 				}
