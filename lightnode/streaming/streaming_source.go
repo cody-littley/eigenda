@@ -140,9 +140,6 @@ func (s *Source) monitor() {
 				elapsed := time.Since(startTime)
 				s.cancel()
 
-				// give time for connections to close
-				time.Sleep(time.Second * 5)
-
 				s.connectionMetadataLock.Lock()
 				numberOfConnections := s.nextConnectionID
 				s.connectionMetadataLock.Unlock()
@@ -296,7 +293,7 @@ func (s *Source) RequestPushes(ctx context.Context, request *lightnode.RequestPu
 					var err error
 					conn, client, err = s.newConnection(destination)
 					if err != nil {
-						fmt.Printf("failed to connect: %v\n", err)
+						//fmt.Printf("failed to connect: %v\n", err)
 						return
 					}
 				}
