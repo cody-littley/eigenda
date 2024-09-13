@@ -140,6 +140,9 @@ func (s *Source) monitor() {
 				elapsed := time.Since(startTime)
 				s.cancel()
 
+				// give time for connections to close
+				time.Sleep(time.Second * 5)
+
 				s.connectionMetadataLock.Lock()
 				numberOfConnections := s.nextConnectionID
 				s.connectionMetadataLock.Unlock()
