@@ -117,36 +117,44 @@ func (d *Destination) put() error {
 
 	////////////////////////////////////
 
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(d.config.DestinationConfig.NumberOfConnections)
+
 	for i := 0; i < d.config.DestinationConfig.NumberOfConnections; i++ {
 		target := d.config.DestinationConfig.SourceHostname
 
 		fmt.Printf("dialing %s\n", target)
 
-		conn, err := grpc.DialContext(
-			d.ctx,
-			d.config.DestinationConfig.SourceHostname,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithBlock())
-		if err != nil {
-			fmt.Printf("failed to dial: %v\n", err)
-		}
-		defer conn.Close()
+		go func() {
+			conn, err := grpc.DialContext(
+				d.ctx,
+				d.config.DestinationConfig.SourceHostname,
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+				grpc.WithBlock())
+			if err != nil {
+				fmt.Printf("failed to dial: %v\n", err)
+			}
+			defer conn.Close()
 
-		fmt.Println("connection established")
+			fmt.Println("connection established")
 
-		client := lightnode.NewSourceClient(conn)
+			client := lightnode.NewSourceClient(conn)
 
-		selfAddress := fmt.Sprintf("%s:%d", d.config.DestinationConfig.SelfIP, d.config.Port)
+			selfAddress := fmt.Sprintf("%s:%d", d.config.DestinationConfig.SelfIP, d.config.Port)
 
-		_, err = client.RequestPushes(d.ctx, &lightnode.RequestPushesRequest{
-			Destination: selfAddress,
-		})
-		if err != nil {
-			fmt.Printf("failed to request pushes: %v\n", err)
-		} else {
-			fmt.Println("pushes requested")
-		}
+			_, err = client.RequestPushes(d.ctx, &lightnode.RequestPushesRequest{
+				Destination: selfAddress,
+			})
+			if err != nil {
+				fmt.Printf("failed to request pushes: %v\n", err)
+			} else {
+				fmt.Println("pushes requested")
+			}
+			waitGroup.Done()
+		}()
 	}
+
+	waitGroup.Wait()
 
 	select {
 	case <-d.ctx.Done():
