@@ -107,6 +107,8 @@ func (s *Source) Start() error {
 	}
 
 	fmt.Println("Server shutting down")
+	// Give a little time for spazzy threads to finish their thingy
+	time.Sleep(10 * time.Second)
 
 	return nil
 }
